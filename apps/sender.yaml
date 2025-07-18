@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sender
+  namespace: order
+spec:
+  selector:
+    matchLabels:
+      app: sender
+  template:
+    metadata:
+      labels:
+        app: sender
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: aks-keda-eh-kafka-lab-app-sa
+      containers:
+      - name: sender
+        image: <Azure Container Registry Name>.azurecr.io/sender:v1
+        envFrom:
+          - configMapRef:
+              name: event-hub-config
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi

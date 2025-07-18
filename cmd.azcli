@@ -1,0 +1,43 @@
+# Faça build das imagens no ACR (substitua <acr_name> pelo output do terraform)
+az acr build --registry akskedaehkafkalab4Dif5u --file Dockerfile-sender --image sender:v1 .
+az acr build --registry akskedaehkafkalab4Dif5u --file Dockerfile-receiver --image receiver:v1 .
+
+##get credentials
+az aks get-credentials --resource-group aks-keda-eh-kafka-lab --name aks-keda-eh-kafka-lab
+
+##get all
+kubectl get all -n order
+
+##apply 
+kubectl apply -f receiver.yaml
+kubectl apply -f sender.yaml
+
+##pods
+kubectl get pods -n order
+
+kubectl describe pod receiver-58c994d8c9-hv2c -n order
+kubectl describe pod sender-8649d59c55-6zbk -n order
+
+##scale sender
+kubectl -n order scale --replicas=0 deployment/sender
+kubectl -n order scale --replicas=4 deployment/sender
+
+##keda 
+kubectl get hpa -n order
+kubectl describe hpa keda-hpa-receiver -n order
+
+kubectl get scaledobject -n order
+kubectl describe scaledobject receiver -n order
+
+##get logs
+kubectl -n order get pods -o wide
+kubectl -n order logs --selector app=receiver --max-log-requests 40 -f
+kubectl -n order logs --selector app=sender --max-log-requests 40 -f
+
+---------------
+
+##delete 
+kubectl delete deployment sender -n order --force
+kubectl delete deployment receiver -n order --force
+kubectl delete hpa keda-hpa-receiver -n order
+kubectl delete scaledobject receiver -n order

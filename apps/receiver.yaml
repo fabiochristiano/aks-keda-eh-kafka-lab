@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: receiver
+  namespace: order
+spec:
+  selector:
+    matchLabels:
+      app: receiver
+  template:
+    metadata:
+      labels:
+        app: receiver
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: aks-keda-eh-kafka-lab-app-sa
+      containers:
+      - name: receiver
+        image: <Azure Container Registry Name>.azurecr.io/receiver:v1
+        envFrom:
+          - configMapRef:
+              name: event-hub-config
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: azure-eventhub-auth
+  namespace: order
+spec:
+  podIdentity:
+    provider: azure-workload
+    identityId: <Managed Identity Client ID>
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: receiver
+  namespace: order
+spec:
+  scaleTargetRef:
+    name: receiver
+  pollingInterval: 15
+  minReplicaCount: 0
+  maxReplicaCount: 4
+  cooldownPeriod: 30
+  triggers:
+  - type: azure-eventhub
+    metadata:
+      eventHubName: orders
+      consumerGroup: orders-consumer
+      unprocessedEventThreshold: "10"
+      eventHubNamespace: <Service Bus Namespace>
+    authenticationRef:
+        name: azure-eventhub-auth 
