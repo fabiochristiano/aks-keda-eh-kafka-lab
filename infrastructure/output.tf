@@ -12,3 +12,8 @@ output "managed_identity_id" {
   value       = azurerm_user_assigned_identity.aks-keda-eh-kafka-lab-app-identity.client_id
   description = "Managed Identity Client ID"
 }
+
+output "storage_account_name" {
+  value       = azurerm_storage_account.checkpoint.name
+  description = "Storage Account Name for Event Hub checkpoints"
+}

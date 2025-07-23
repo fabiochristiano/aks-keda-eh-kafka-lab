@@ -33,10 +33,11 @@ resource "kubernetes_config_map" "event-hub-config" {
   }
 
   data = {
-    EVENT_HUB_NAME     = "orders"
+    EVENT_HUB_NAME      = "orders"
     EVENT_HUB_NAMESPACE = azurerm_eventhub_namespace.aks-keda-eh-kafka-lab.name
-    HOST_NAME          = "${azurerm_eventhub_namespace.aks-keda-eh-kafka-lab.name}.servicebus.windows.net"
-    CONSUMER_GROUP     = "orders-consumer"
+    HOST_NAME           = "${azurerm_eventhub_namespace.aks-keda-eh-kafka-lab.name}.servicebus.windows.net"
+    CONSUMER_GROUP      = "orders-consumer"
+    STORAGE_ACCOUNT_NAME = azurerm_storage_account.checkpoint.name
   }
 
 }

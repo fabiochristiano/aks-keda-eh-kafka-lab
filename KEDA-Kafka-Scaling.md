@@ -120,10 +120,21 @@ graph TD
     G --> H[Pods se redistribuem automaticamente]
 ```
 
-## ⚡ Exemplo Prático: Escalonamento de 2 para 5 Partições
+## ⚡ Exemplo Prático: Escalonamento com Partições
 
-### Passo 1: Aumentar partições no Event Hub
+> ⚠️ **IMPORTANTE**: O Azure Event Hub **NÃO PERMITE REDUZIR** o número de partições após a criação. 
+> Você só pode **AUMENTAR** partições, e essa operação é **IRREVERSÍVEL**.
+
+### Considerações antes de aumentar partições:
+- **Irreversível**: Uma vez aumentado, não pode ser reduzido
+- **Custo**: Mais partições podem aumentar os custos (throughput units)
+- **Distribuição**: Pode afetar a distribuição de mensagens existentes
+- **Planejamento**: Requer análise cuidadosa da carga de trabalho
+
+### Passo 1: (OPCIONAL) Aumentar partições no Event Hub
 ```bash
+# ⚠️ CUIDADO: Esta operação é IRREVERSÍVEL!
+# Só execute se realmente precisar de mais throughput
 az eventhubs eventhub update \
   --resource-group aks-keda-eh-kafka-lab \
   --namespace-name aks-keda-eh-kafka-lab-9zbdqD \
@@ -131,10 +142,12 @@ az eventhubs eventhub update \
   --partition-count 5
 ```
 
-### Passo 2: Atualizar KEDA
+### Passo 2: Ajustar KEDA ScaledObject
 ```yaml
-# receiver.yaml
-maxReplicaCount: 5  # Era 20, agora 5
+# receiver.yaml - Ajuste conforme o número de partições
+spec:
+  maxReplicaCount: 2  # Para 2 partições (padrão do lab)
+  # maxReplicaCount: 5  # Se aumentou para 5 partições
 ```
 
 ### Passo 3: Aplicar mudanças
@@ -142,7 +155,14 @@ maxReplicaCount: 5  # Era 20, agora 5
 kubectl apply -f receiver.yaml
 ```
 
-### Resultado:
+### Resultado com 2 partições (configuração padrão):
+```
+Tópico "orders" (2 partições)
+├── Partition 0 ──── Pod-1 ✅
+└── Partition 1 ──── Pod-2 ✅
+```
+
+### Resultado se aumentado para 5 partições:
 ```
 Tópico "orders" (5 partições)
 ├── Partition 0 ──── Pod-1 ✅
@@ -219,6 +239,31 @@ kubectl get pods -n order -w
 - [Kafka Consumer Groups](https://kafka.apache.org/documentation/#intro_consumers)
 - [Azure Event Hub Partitioning](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-scalability#partitions)
 
+## ⚠️ Limitações Importantes do Azure Event Hub
+
+### Partições:
+- ✅ **Pode aumentar**: Número de partições pode ser aumentado
+- ❌ **NÃO pode reduzir**: Uma vez criado com N partições, não pode diminuir
+- 💰 **Impacta custo**: Mais partições = maior throughput units necessário
+- 🔄 **Irreversível**: Operação de aumento é permanente
+
+### Boas Práticas:
+1. **Planeje antecipadamente** o número de partições necessário
+2. **Comece conservador** - é melhor aumentar depois do que ter partições desnecessárias
+3. **Monitore utilização** antes de fazer mudanças
+4. **Considere custos** - partições extras custam mesmo se não utilizadas
+5. **Teste em ambiente de desenvolvimento** antes de aplicar em produção
+
+### Comandos para verificar partições atuais:
+```bash
+# Verificar número atual de partições
+az eventhubs eventhub show \
+  --resource-group aks-keda-eh-kafka-lab \
+  --namespace-name aks-keda-eh-kafka-lab-9zbdqD \
+  --name orders \
+  --query partitionCount
+```
+
 ---
 
-**📝 Resumo:** Em Kafka/Event Hub, o número de partições é o fator limitante para escalonamento horizontal. Sempre alinhe `maxReplicaCount` com o número de partições para otimizar recursos e performance.
+**📝 Resumo:** Em Kafka/Event Hub, o número de partições é o fator limitante para escalonamento horizontal. Sempre alinhe `maxReplicaCount` com o número de partições para otimizar recursos e performance. **Lembre-se: partições não podem ser reduzidas!**
